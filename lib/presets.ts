@@ -1,0 +1,73 @@
+import type { FilterState, ScreenPreset } from './types';
+
+export const EMPTY_FILTERS: FilterState = {
+  search: '',
+  marketCapMin: null,
+  marketCapMax: null,
+  volumeMin: null,
+  change24hMin: null,
+  change24hMax: null,
+  change7dMin: null,
+  change7dMax: null,
+  priceMin: null,
+  priceMax: null,
+  supplyRatioMax: null,
+  setup: 'any',
+};
+
+export const BUILT_IN_PRESETS: ScreenPreset[] = [
+  {
+    id: 'top-gainers',
+    name: 'Top 24h Gainers',
+    builtIn: true,
+    filters: { ...EMPTY_FILTERS, change24hMin: 5 },
+    sortKey: 'price_change_percentage_24h_in_currency',
+    sortDirection: 'desc',
+    createdAt: 0,
+  },
+  {
+    id: 'top-losers',
+    name: 'Top 24h Losers',
+    builtIn: true,
+    filters: { ...EMPTY_FILTERS, change24hMax: -5 },
+    sortKey: 'price_change_percentage_24h_in_currency',
+    sortDirection: 'asc',
+    createdAt: 0,
+  },
+  {
+    id: 'high-volume',
+    name: 'High Volume',
+    builtIn: true,
+    filters: { ...EMPTY_FILTERS, volumeMin: 100_000_000 },
+    sortKey: 'total_volume',
+    sortDirection: 'desc',
+    createdAt: 0,
+  },
+  {
+    id: 'large-cap',
+    name: 'Large Cap (Blue Chip)',
+    builtIn: true,
+    filters: { ...EMPTY_FILTERS, marketCapMin: 10_000_000_000 },
+    sortKey: 'market_cap',
+    sortDirection: 'desc',
+    createdAt: 0,
+  },
+  {
+    id: 'small-cap-momentum',
+    name: 'Small-Cap Momentum',
+    builtIn: true,
+    filters: { ...EMPTY_FILTERS, marketCapMax: 500_000_000, change7dMin: 10 },
+    sortKey: 'price_change_percentage_7d_in_currency',
+    sortDirection: 'desc',
+    createdAt: 0,
+  },
+  {
+    id: 'bullish-setups',
+    name: 'Bullish Setups',
+    builtIn: true,
+    filters: { ...EMPTY_FILTERS, setup: 'bullish' },
+    sortKey: 'market_cap',
+    sortDirection: 'desc',
+    createdAt: 0,
+  },
+];
