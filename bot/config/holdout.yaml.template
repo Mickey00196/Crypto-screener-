@@ -1,0 +1,29 @@
+# TEMPLATE — config/holdout.yaml does not exist yet in this checkout because
+# real historical data has not been fetched (this sandbox's network egress is
+# blocked to exchange APIs; see bot/FINDINGS.md).
+#
+# Once you run `python scripts/run_phase1_fetch.py` from an environment with
+# network access, `data/splits.py` will generate a real `config/holdout.yaml`
+# in exactly this shape — one entry per symbol/timeframe, computed
+# chronologically from the fetched data (60% train / 20% val / 20% holdout).
+# guard/holdout_guard.py and data/storage.py read this file; nothing should
+# hand-edit it.
+splits:
+  BTC/USDT:
+    1h:
+      train_end: "2024-XX-XXT00:00:00Z"
+      val_end: "2025-XX-XXT00:00:00Z"
+      holdout_end: "2025-XX-XXT00:00:00Z"
+    4h:
+      train_end: "2024-XX-XXT00:00:00Z"
+      val_end: "2025-XX-XXT00:00:00Z"
+      holdout_end: "2025-XX-XXT00:00:00Z"
+  ETH/USDT:
+    1h:
+      train_end: "2024-XX-XXT00:00:00Z"
+      val_end: "2025-XX-XXT00:00:00Z"
+      holdout_end: "2025-XX-XXT00:00:00Z"
+    4h:
+      train_end: "2024-XX-XXT00:00:00Z"
+      val_end: "2025-XX-XXT00:00:00Z"
+      holdout_end: "2025-XX-XXT00:00:00Z"

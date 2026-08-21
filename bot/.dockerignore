@@ -1,0 +1,12 @@
+.venv
+__pycache__
+*.pyc
+.pytest_cache
+.ruff_cache
+tests
+data/raw
+data/processed
+*.parquet
+live/*.json
+.env
+.git

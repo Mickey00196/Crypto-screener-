@@ -1,0 +1,39 @@
+# Config-driven parameters. No trading parameter is hardcoded in engine/
+# strategy code — everything routes through settings.py's load_settings().
+
+# Hard rule: MUST default to "paper". Only flip to "live" deliberately, with
+# real exchange keys supplied via .env, once you've decided to risk capital.
+trading_mode: paper
+
+# Research/backtest universe this pass (reduced scope, see README for the
+# full 5-pair x 4-timeframe brief and what's needed to extend to it).
+pairs:
+  - BTC/USDT # Binance research history: deep (3yr+), USDT-quoted
+  - ETH/USDT
+# Execution/paper-trading target is Bitvavo (EUR-quoted: BTC/EUR, ETH/EUR).
+# Binance has no direct EUR pairs, so research/backtesting happens in USDT
+# terms while execution happens in EUR terms — see README for the basis
+# caveat this introduces.
+
+timeframes:
+  - 1h
+  - 4h
+
+exchange_execution: bitvavo
+exchange_research: binance
+
+train_frac: 0.6
+val_frac: 0.2 # remainder (0.2) is holdout
+
+costs:
+  taker_fee_bps: 25 # Bitvavo taker fee ~0.25%
+  maker_fee_bps: 15 # Bitvavo maker fee ~0.15%
+  slippage_bps: 5 # conservative fixed slippage assumption for liquid BTC/ETH pairs
+  funding_bps_per_8h: 0 # spot only this pass, no perpetuals => no funding cost
+
+risk:
+  max_risk_per_trade_pct: 1.0
+  max_position_pct: 20.0
+  max_concurrent_positions: 3
+  daily_loss_limit_pct: 3.0
+  max_drawdown_kill_switch_pct: 15.0
