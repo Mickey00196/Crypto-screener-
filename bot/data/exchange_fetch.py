@@ -59,7 +59,15 @@ def fetch_ohlcv_history(
         cursor = next_cursor
         if until_ms is not None and cursor >= until_ms:
             break
-        if len(rows) < limit:
+        if until_ms is None and len(rows) < limit:
+            # Open-ended fetch (no until_ms): a short page is a reasonable
+            # signal we've reached "now". When until_ms IS set, a short page
+            # partway through the requested range does NOT mean we're done —
+            # some exchanges (confirmed: Bitvavo) return fewer than `limit`
+            # rows for a given `since` even with much more history still
+            # ahead before `until_ms`. Stopping here silently truncated a
+            # requested 90-day fetch to ~42 days in production. Only stop
+            # early when there's no explicit end to reach.
             break
 
     df = pd.DataFrame(all_rows, columns=["timestamp", "open", "high", "low", "close", "volume"])

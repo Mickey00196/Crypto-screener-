@@ -28,7 +28,7 @@ from data.fetch_bitvavo import fetch_bitvavo_ohlcv
 
 SYMBOLS = ["BTC/EUR", "ETH/EUR"]
 TIMEFRAME = "1h"
-LOOKBACK_DAYS = 90
+LOOKBACK_DAYS = 730
 BATCH_SIZE = 40  # rows per printed log line — Railway rate-limits at 500 log
 # lines/sec per replica and silently DROPS lines over that (learned the hard
 # way: one-row-per-line dropped 1,258 of ~4,320 rows). Batching + a small

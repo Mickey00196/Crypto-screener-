@@ -55,6 +55,40 @@ def test_until_ms_cutoff_is_respected():
     assert len(df) == 2
 
 
+def test_short_page_before_until_ms_does_not_stop_pagination_early():
+    """Regression test for a real bug found via a production Bitvavo fetch
+    (see FINDINGS.md): a page returning fewer than `limit` rows must NOT be
+    treated as "no more data" when there's still range left before an
+    explicit until_ms — Bitvavo, confirmed, returns short pages mid-history,
+    which silently truncated a requested 90-day fetch to ~42 days."""
+    base = 1_700_000_000_000
+    hour = 3_600_000
+    page1 = [_row(base + i * hour) for i in range(3)]  # short page: 3 < limit(10)
+    page2 = [_row(base + (3 + i) * hour) for i in range(3)]
+    exchange = FakeExchange([page1, page2, []])
+    until = base + 10 * hour
+
+    df = fetch_ohlcv_history(exchange, "BTC/USDT", "1h", since_ms=base, until_ms=until, limit=10)
+
+    assert len(df) == 6  # both pages fetched, not just page1's short 3 rows
+    assert len(exchange.calls) >= 2
+
+
+def test_short_page_with_no_until_ms_still_stops_early():
+    """Without an explicit until_ms (open-ended "fetch to now"), a short
+    page IS a reasonable signal that we've reached the end of history —
+    this shortcut should still apply in that case."""
+    base = 1_700_000_000_000
+    hour = 3_600_000
+    page1 = [_row(base + i * hour) for i in range(3)]  # short page: 3 < limit(10)
+    exchange = FakeExchange([page1])
+
+    df = fetch_ohlcv_history(exchange, "BTC/USDT", "1h", since_ms=base, limit=10)
+
+    assert len(df) == 3
+    assert len(exchange.calls) == 1
+
+
 def test_empty_first_page_returns_empty_dataframe():
     exchange = FakeExchange([[]])
     df = fetch_ohlcv_history(exchange, "BTC/USDT", "1h", since_ms=1_700_000_000_000)
