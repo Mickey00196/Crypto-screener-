@@ -13,13 +13,13 @@ question is still open.
 
 ## What was actually verified this session
 
-Everything in `bot/` was built and is real, tested code — 162 automated
+Everything in `bot/` was built and is real, tested code — 170 automated
 tests, all passing, `ruff check .` clean:
 
 | Phase | What was built | Tests |
 |---|---|---|
 | 0 — Research | `RESEARCH.md`: 8 strategy families surveyed with citations, indicator evidence table, 3 families selected | — |
-| 1 — Data | ccxt fetchers for Binance/Bitvavo (real logic, mocked-HTTP tested), validation, chronological splitting, Parquet storage, synthetic-data generator | 27 |
+| 1 — Data | ccxt fetchers for Binance/Bitvavo + a CoinGecko REST fetcher (real logic, mocked-HTTP tested), validation, chronological splitting, Parquet storage, synthetic-data generator | 35 |
 | 2 — Engine | Event-driven bar-by-bar backtester: fees, slippage, stop/take-profit, multi-symbol portfolio, full trade log | 20 |
 | 2b — Indicators | 30+ hand-tested indicators across 7 categories, including the Wilder-vs-simple-smoothing correctness the brief specifically warns about | 43 |
 | 3 — Strategy/risk | Strategy protocol, 3 chosen strategies, a standalone-tested risk module (ATR sizing, daily loss limit, drawdown kill switch) | 9 + 10 |
@@ -83,11 +83,61 @@ This is why:
   `tests/test_live/test_trading_loop.py`, but Phase 5's "≥2 weeks live"
   requirement needs actual market access and actual elapsed calendar time,
   neither of which this session has.
-- The two Dockerfiles were written but not build-verified — this sandbox
-  has no Docker daemon (`docker build` fails with "cannot connect to the
-  Docker daemon"). They follow a standard `pip install .` pattern with no
-  unusual dependencies, so they are likely to build cleanly, but that is an
-  expectation, not a proof.
+- This sandbox has no Docker daemon (`docker build` fails with "cannot
+  connect to the Docker daemon"), so neither Dockerfile could be verified
+  locally — but `bot/Dockerfile` WAS verified via a real Railway build (see
+  the section below), which caught and led to fixing a real bug
+  (`dashboard/` wasn't being copied in). `Dockerfile.dashboard` shares the
+  same fixed package list and was sanity-checked the same way locally, but
+  has not itself been through a real build.
+
+## Railway investigation: a real, working alternative path — and a real bug it caught
+
+After confirming the sandbox block, the same question was tested against
+real infrastructure: a new Railway project
+(`crypto-trading-bot-data-fetch`) was created and a service deployed
+straight from this repo's `bot/` directory (branch
+`claude/crypto-trading-bot-wz0pyf`), with a diagnostic start command
+pinging both exchanges.
+
+**First deploy failed the BUILD, not the network check** — and this was a
+real bug, not an environment limitation: `pyproject.toml` declares
+`dashboard` as an installable package (needed for `Dockerfile.dashboard`),
+but `bot/Dockerfile` never copied the `dashboard/` directory in, so
+`pip install .` failed there with `package directory 'dashboard' does not
+exist`. This sandbox has no Docker daemon, so `docker build` had never
+been run locally — Railway's build is what caught it. Fixed by adding
+`COPY dashboard ./dashboard` to `bot/Dockerfile`, verified by simulating
+the exact Dockerfile `COPY` set in a clean venv (`pip install .` now
+succeeds), and confirmed for real by a green Railway build.
+
+**Once it built, the network diagnostic gave a real, mixed result** from
+Railway's `us-west2` region:
+
+| Exchange | Result |
+|---|---|
+| `api.binance.com` | **HTTP 451** — Binance geo-blocks US-region IPs by policy; this is Binance's own restriction, not a network/proxy problem |
+| `api.bitvavo.com` | **HTTP 200** — fully reachable |
+
+So Bitvavo (this project's execution/paper-trading target) is reachable
+from ordinary cloud infrastructure right now — the blocker really is
+specific to this sandbox's egress policy, not to "no environment can reach
+these exchanges." A non-US Railway region would plausibly unblock Binance
+too (untested — the user redirected effort elsewhere before this was
+tried; a European region is the next thing to attempt if deep Binance
+history is still wanted).
+
+At the user's direction, the Railway data-fetch effort was paused there
+rather than actually pulling real Bitvavo OHLCV back into this repo — the
+user plans to integrate CoinGecko themselves later instead. To support
+that, `data/fetch_coingecko.py` was added: a tested (8 tests, mocked HTTP
+via `responses`) CoinGecko fetcher returning the same
+`[timestamp, open, high, low, close, volume]` shape as the Binance/Bitvavo
+fetchers, ready to wire into `scripts/run_phase1_fetch.py` whenever
+needed. Note: `api.coingecko.com` was independently confirmed blocked from
+this sandbox too (`curl` and the `WebFetch` tool both got
+`EGRESS_BLOCKED`/403) — the same sandbox-egress limitation applies to it,
+same as Binance and Bitvavo; only the Railway path was shown to bypass it.
 
 ## What would produce a real result
 

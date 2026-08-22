@@ -21,7 +21,7 @@ cd bot
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 cp .env.example .env   # TRADING_MODE=paper by default — leave it that way until you mean it
-pytest                  # 162 tests, should all pass
+pytest                  # 170 tests, should all pass
 ruff check .             # should be clean
 ```
 
@@ -49,7 +49,7 @@ bot/
                 trading loop, restart-safe state
   dashboard/    Streamlit: equity curve, drawdown, trade log, positions
   scripts/      CLI entrypoints for every phase above
-  tests/        162 tests, mirrors the structure above
+  tests/        170 tests, mirrors the structure above
 ```
 
 ## Hard rules, enforced
@@ -156,12 +156,15 @@ docker build -f Dockerfile -t crypto-bot .
 docker build -f Dockerfile.dashboard -t crypto-bot-dashboard .
 ```
 
-**Not build-verified this session** — this sandbox has no Docker daemon.
-Both Dockerfiles follow a standard `pip install .` pattern with no unusual
-system dependencies, so they're expected to build cleanly; verify before
-relying on them. Deploy as two separate Railway services from this `bot/`
-subdirectory, with `TRADING_MODE=paper` set (or left unset — it's the
-default) until you deliberately decide otherwise.
+This sandbox has no Docker daemon, so neither Dockerfile could be built
+locally — but `Dockerfile` (this one, not `.dashboard`) **was** verified
+via a real Railway build this session, which caught and led to fixing a
+real bug (`dashboard/` wasn't being copied in — see `FINDINGS.md`).
+`Dockerfile.dashboard` shares the same fixed package list but hasn't
+itself been through a real build; verify before relying on it. Deploy as
+two separate Railway services from this `bot/` subdirectory, with
+`TRADING_MODE=paper` set (or left unset — it's the default) until you
+deliberately decide otherwise.
 
 ## Extending to the full brief's scope
 
@@ -172,3 +175,13 @@ at 5m/15m/1h/4h. To extend: add symbols/timeframes to
 `run_phase1_fetch.py`, and the rest of the pipeline (engine, indicators,
 strategies, optimization, evaluation) needs no changes — it's already
 parameterized over symbol/timeframe.
+
+`data/fetch_coingecko.py` is a tested, ready-to-use alternative/
+supplementary research-data source (no API key needed) — not currently
+wired into `run_phase1_fetch.py`'s default flow. It returns true OHLC
+candles with no volume from CoinGecko's `/ohlc` endpoint, backfilled with a
+volume column from `/market_chart` via nearest-timestamp matching; note
+CoinGecko's free tier coarsens candle granularity beyond ~90 days of
+lookback, so it's a reasonable Bitvavo/Binance supplement rather than a
+full deep-history replacement. See `FINDINGS.md` for why it hasn't been
+exercised against the live API yet.
