@@ -14,6 +14,7 @@ COPY risk ./risk
 COPY evaluation ./evaluation
 COPY optimization ./optimization
 COPY live ./live
+COPY dashboard ./dashboard
 COPY scripts ./scripts
 
 RUN pip install --no-cache-dir .
