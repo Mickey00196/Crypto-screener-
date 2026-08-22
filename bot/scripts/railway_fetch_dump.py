@@ -21,6 +21,7 @@ Run (via a Railway service startCommand override):
 
 from __future__ import annotations
 
+import time
 from datetime import UTC, datetime, timedelta
 
 from data.fetch_bitvavo import fetch_bitvavo_ohlcv
@@ -28,6 +29,15 @@ from data.fetch_bitvavo import fetch_bitvavo_ohlcv
 SYMBOLS = ["BTC/EUR", "ETH/EUR"]
 TIMEFRAME = "1h"
 LOOKBACK_DAYS = 90
+BATCH_SIZE = 40  # rows per printed log line — Railway rate-limits at 500 log
+# lines/sec per replica and silently DROPS lines over that (learned the hard
+# way: one-row-per-line dropped 1,258 of ~4,320 rows). Batching + a small
+# sleep between batches keeps well clear of that limit.
+BATCH_SLEEP_SECONDS = 0.05
+
+
+def _encode_row(row) -> str:
+    return f"{row.timestamp.isoformat()},{row.open!r},{row.high!r},{row.low!r},{row.close!r},{row.volume!r}"
 
 
 def main() -> None:
@@ -38,13 +48,13 @@ def main() -> None:
     for symbol in SYMBOLS:
         df = fetch_bitvavo_ohlcv(symbol, TIMEFRAME, since, until)
         print(f"SYMBOL_START,{symbol},{TIMEFRAME},{len(df)}", flush=True)
-        for row in df.itertuples(index=False):
-            print(
-                f"ROW,{symbol},{TIMEFRAME},{row.timestamp.isoformat()},"
-                f"{row.open!r},{row.high!r},{row.low!r},{row.close!r},{row.volume!r}",
-                flush=True,
-            )
-            total += 1
+        rows = list(df.itertuples(index=False))
+        for i in range(0, len(rows), BATCH_SIZE):
+            batch = rows[i : i + BATCH_SIZE]
+            encoded = "|".join(_encode_row(r) for r in batch)
+            print(f"BATCH,{symbol},{TIMEFRAME},{i},{len(batch)},{encoded}", flush=True)
+            total += len(batch)
+            time.sleep(BATCH_SLEEP_SECONDS)
         print(f"SYMBOL_END,{symbol},{TIMEFRAME}", flush=True)
 
     print(f"FETCH_ALL_DONE,total_rows={total}", flush=True)
