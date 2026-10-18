@@ -15,6 +15,7 @@ COPY evaluation ./evaluation
 COPY optimization ./optimization
 COPY live ./live
 COPY dashboard ./dashboard
+COPY setups ./setups
 
 RUN pip install --no-cache-dir .
 

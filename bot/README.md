@@ -21,7 +21,7 @@ cd bot
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 cp .env.example .env   # TRADING_MODE=paper by default — leave it that way until you mean it
-pytest                  # 170 tests, should all pass
+pytest                  # 231 tests, should all pass
 ruff check .             # should be clean
 ```
 
@@ -48,8 +48,9 @@ bot/
   live/         paper broker (simulated fills), gated live broker, the
                 trading loop, restart-safe state
   dashboard/    Streamlit: equity curve, drawdown, trade log, positions
+  setups/       setup scanner: key levels, rising channel, scenario rules
   scripts/      CLI entrypoints for every phase above
-  tests/        170 tests, mirrors the structure above
+  tests/        231 tests, mirrors the structure above
 ```
 
 ## Hard rules, enforced
@@ -148,6 +149,47 @@ python scripts/run_pipeline_smoketest.py
 # Dashboard
 streamlit run dashboard/app.py
 ```
+
+## Setup scanner
+
+A separate, non-trading tool: it reads a weekly chart the way a TA
+account on X draws one and prints the plan it implies.
+
+- `data/fetch_coinbase.py`: Coinbase public candles (no API key). Coinbase
+  and Bitvavo work from Railway; Binance answers HTTP 451 from Railway's
+  US region, so the scanner doesn't use it.
+- `data/candle_db.py`: Postgres storage (`DATABASE_URL`). Candles are
+  upserted, so each run only re-fetches the last few days. Every scan also
+  writes its setup to a `scenarios` table, which is the log to score
+  hit rates from later.
+- `setups/`: key levels (clustered swing pivots + 1-2-5 round numbers), a
+  rising channel in log price, and the scenario rules: base, breakout
+  (closed candles only), measured move, retest or sweep zone, trigger,
+  targets, invalidation.
+- `scripts/run_setup_scan.py`: the cron entrypoint. Optional Telegram
+  delivery via `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID`.
+
+```bash
+python scripts/run_setup_scan.py --symbols coinbase:AERO/USD,coinbase:BTC/USD
+```
+
+```
+AERO/USD 1w | price 0.7900 | extended
+Broke out of the base and is above the retest zone.
+Base 0.2900-0.6000, measured move 0.9100 (hit)
+Channel now 0.3601-0.6577
+Retest zone 0.6000-0.6577
+trigger 1.000 | targets 1.300, 1.580 | invalid below 0.5529
+```
+
+(Output above is from the AERO-shaped test series in
+`tests/test_setups/series.py`, not live data.)
+
+On Railway: add a Postgres database to the project, set `DATABASE_URL` on
+the service to `${{Postgres.DATABASE_URL}}`, set the start command to
+`python scripts/run_setup_scan.py`, and give the service a cron schedule
+(e.g. `15 0 * * *`, just after the daily UTC close). The scanner describes
+a chart; it isn't a forecast, and it never places orders.
 
 ## Docker
 
